@@ -1,3 +1,12 @@
+# 6 | Add 2D projection (sum over rays angled at θ) 
+# 7 | Add Source–Detector distance (magnification) 
+# 8 | Add energy (kVp → attenuation scaling) 
+# 9 | Add exposure time modification
+# 10 | Add filtration (beam hardening) 
+# 11 | Add GUI sliders (PyQt5) 
+# 12 | Add breast phantom + compression 
+# 13 | Export all outputs into your report 
+
 import matplotlib.pyplot as plt
 from phantom import create_simple_phantom
 from simulate_xray import (
