@@ -1,6 +1,56 @@
 import numpy as np
 from skimage.transform import rotate, rescale
 
+import numpy as np
+from skimage.transform import rotate, rescale
+
+# keep your existing _apply_magnification, _apply_energy_scaling,
+# _apply_filtration, _apply_exposure at the top of this file
+
+def simulate_xray_2d(phantom,
+                     angle_deg,
+                     I0=1.0,
+                     sid=500.0,
+                     sdd=1000.0,
+                     kVp=30.0,
+                     exposure_time=1.0,
+                     filtration_mmAl=0.0):
+    """
+    Simple 2D X-ray 'radiograph':
+
+    - rotate phantom by angle_deg
+    - apply magnification using SID/SDD
+    - integrate attenuation across the image (cumulative sum)
+    - apply energy scaling, filtration and exposure
+    """
+
+    # 1) Rotate phantom
+    rotated = rotate(phantom, angle=angle_deg, resize=False, mode="edge")
+
+    # 2) Magnify according to geometry (SID / SDD)
+    mag = _apply_magnification(rotated, sid, sdd)   # uses SDD/SID internally
+
+    # 3) Build a 2D path integral using cumulative sum along x
+    #    (each pixel sees different path length → visible structure)
+    path_integral = np.cumsum(mag, axis=1)
+
+    # Scale by magnification so SID / SDD visibly change contrast
+    M = sdd / sid
+    path_integral = path_integral * M / mag.shape[1]
+
+    # 4) Apply energy scaling & filtration
+    path_integral = _apply_energy_scaling(path_integral, kVp)
+    path_integral = _apply_filtration(path_integral, filtration_mmAl, kVp)
+
+    # 5) Beer–Lambert (per pixel)
+    I = I0 * np.exp(-path_integral)
+
+    # 6) Exposure
+    I = _apply_exposure(I, exposure_time)
+
+    return I
+
+
 
 def _apply_magnification(image, sid, sdd):
     """

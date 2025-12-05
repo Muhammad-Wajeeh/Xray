@@ -10,6 +10,8 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from phantom import create_shepp_logan
 from simulate_xray import simulate_projection_angle
+from simulate_xray import simulate_xray_2d
+
 
 
 class XrayGUI(QMainWindow):
@@ -99,25 +101,19 @@ class XrayGUI(QMainWindow):
         self.exp_slider[0].setText(f"Exposure x0.01s: {self.exp_slider[1].value()}")
         self.filt_slider[0].setText(f"Filtration (mm Al): {filt}")
 
-        # Generate projection
-        I, rotated = simulate_projection_angle(
-            self.phantom,
-            angle,
-            I0=1.0,
-            sid=sid,
-            sdd=sdd,
-            kVp=kvp,
-            exposure_time=exposure,
-            filtration_mmAl=filt
-        )
-
-        # Convert to 2D film for display
-        projection_img = np.tile(I, (self.phantom.shape[0], 1))
-
-        # Draw on canvas
+        projection_img = simulate_xray_2d(
+        self.phantom,
+        angle,
+        I0=1.0,
+        sid=sid,
+        sdd=sdd,
+        kVp=kvp,
+        exposure_time=exposure,
+        filtration_mmAl=filt)
+ 
         self.ax.clear()
         self.ax.imshow(projection_img, cmap='gray')
-        self.ax.set_title("X-ray Projection")
+        self.ax.set_title("X-ray Projection (2D Radiograph)")
         self.canvas.draw()
 
 
