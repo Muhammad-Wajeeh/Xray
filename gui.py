@@ -2,16 +2,19 @@ import sys
 import numpy as np
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget,
-    QVBoxLayout, QHBoxLayout, QLabel, QSlider
+    QVBoxLayout, QHBoxLayout, QLabel, QSlider,
+    QComboBox
 )
 from PyQt5.QtCore import Qt
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-from phantom import create_shepp_logan
-from simulate_xray import simulate_projection_angle
-from simulate_xray import simulate_xray_2d
 
+from phantom import create_shepp_logan
+from simulate_xray import (
+    simulate_sinogram,
+    simulate_projection_single
+)
 
 
 class XrayGUI(QMainWindow):
@@ -22,12 +25,16 @@ class XrayGUI(QMainWindow):
         # Load phantom once
         self.phantom = create_shepp_logan()
 
+        # -----------------------
         # Matplotlib figure
+        # -----------------------
         self.fig = Figure()
         self.canvas = FigureCanvas(self.fig)
         self.ax = self.fig.add_subplot(111)
 
-        # --- Create sliders ---
+        # -----------------------
+        # Create sliders
+        # -----------------------
         self.angle_slider = self.create_slider(0, 180, 30, "Angle (deg)")
         self.sid_slider   = self.create_slider(200, 1200, 500, "SID")
         self.sdd_slider   = self.create_slider(400, 1600, 1000, "SDD")
@@ -35,7 +42,18 @@ class XrayGUI(QMainWindow):
         self.exp_slider   = self.create_slider(1, 300, 100, "Exposure x0.01 s")
         self.filt_slider  = self.create_slider(0, 10, 2, "Filtration (mm Al)")
 
+        # -----------------------
+        # View mode dropdown
+        # -----------------------
+        self.view_selector = QComboBox()
+        self.view_selector.addItems(["X-ray Projection", "Sinogram"])
+        self.view_selector.currentIndexChanged.connect(self.update_projection)
+
+        # -----------------------
+        # Slide panel layout
+        # -----------------------
         sliders = QVBoxLayout()
+
         for label, slider in [
             self.angle_slider,
             self.sid_slider,
@@ -49,10 +67,15 @@ class XrayGUI(QMainWindow):
             row.addWidget(slider)
             sliders.addLayout(row)
 
+        sliders.addWidget(QLabel("View Mode:"))
+        sliders.addWidget(self.view_selector)
+
         slider_panel = QWidget()
         slider_panel.setLayout(sliders)
 
-        # --- Layout: Matplotlib + sliders ---
+        # -----------------------
+        # Final layout: plot + controls
+        # -----------------------
         main_layout = QHBoxLayout()
         main_layout.addWidget(self.canvas, stretch=3)
         main_layout.addWidget(slider_panel, stretch=1)
@@ -61,7 +84,9 @@ class XrayGUI(QMainWindow):
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
+        # -----------------------
         # Connect slider signals
+        # -----------------------
         for _, slider in [
             self.angle_slider,
             self.sid_slider,
@@ -72,20 +97,27 @@ class XrayGUI(QMainWindow):
         ]:
             slider.valueChanged.connect(self.update_projection)
 
+        # -----------------------
         # Initial draw
+        # -----------------------
         self.update_projection()
 
-    def create_slider(self, min_val, max_val, init, text):
-        label = QLabel(f"{text}: {init}")
+    # ---------------------------------------------------
+    # Helper function: slider creation
+    # ---------------------------------------------------
+    def create_slider(self, min_val, max_val, init, label_text):
+        label = QLabel(f"{label_text}: {init}")
         slider = QSlider(Qt.Horizontal)
         slider.setMinimum(min_val)
         slider.setMaximum(max_val)
         slider.setValue(init)
-        slider.text = text
+        slider.label_text = label_text
         return label, slider
 
+    # ---------------------------------------------------
+    # Update projection (X-ray or Sinogram)
+    # ---------------------------------------------------
     def update_projection(self):
-        # --- Read slider values ---
         angle = self.angle_slider[1].value()
         sid   = self.sid_slider[1].value()
         sdd   = self.sdd_slider[1].value()
@@ -93,7 +125,7 @@ class XrayGUI(QMainWindow):
         exposure = self.exp_slider[1].value() / 100.0
         filt  = self.filt_slider[1].value()
 
-        # --- Update slider labels ---
+        # Update labels
         self.angle_slider[0].setText(f"Angle: {angle}°")
         self.sid_slider[0].setText(f"SID: {sid}")
         self.sdd_slider[0].setText(f"SDD: {sdd}")
@@ -101,39 +133,36 @@ class XrayGUI(QMainWindow):
         self.exp_slider[0].setText(f"Exposure x0.01s: {self.exp_slider[1].value()}")
         self.filt_slider[0].setText(f"Filtration (mm AL): {filt}")
 
-        # --- Compute the 2D radiograph ---
-        projection_img = simulate_xray_2d(
-            self.phantom,
-            angle,
-            I0=1.0,
-            sid=sid,
-            sdd=sdd,
-            kVp=kvp,
-            exposure_time=exposure,
-            filtration_mmAl=filt
-        )
+        mode = self.view_selector.currentText()
 
-        # --- Display: FIXED vmin/vmax so brightness changes are visible ---
+        if mode == "X-ray Projection":
+            img = simulate_projection_single(
+                self.phantom, angle, sid, sdd, kvp, exposure, filt
+            )
+            title = f"X-ray Projection @ {angle}°"
+
+        else:  # Sinogram
+            img, _ = simulate_sinogram(
+                self.phantom, angle, sid, sdd, kvp, exposure, filt
+            )
+            title = f"Sinogram (0 → {angle}°)"
+
+        # Display
         if not hasattr(self, "im"):
-            # First frame: create the image object
             self.ax.clear()
             self.im = self.ax.imshow(
-                projection_img,
-                cmap='gray',
-                vmin=0.0,
-                vmax=1.0,        # <<< FIXED RANGE (CRITICAL!)
-                origin='upper'
+                img, cmap="gray", vmin=0.0, vmax=1.0, aspect="auto"
             )
-            self.ax.set_title("X-ray Projection (2D Radiograph)")
         else:
-            # Update the existing image data (fast, does not rescale)
-            self.im.set_data(projection_img)
+            self.im.set_data(img)
 
-        # Redraw canvas
+        self.ax.set_title(title)
         self.canvas.draw()
- 
 
 
+# ---------------------------------------------------
+# MAIN
+# ---------------------------------------------------
 def main():
     app = QApplication(sys.argv)
     gui = XrayGUI()
@@ -143,3 +172,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

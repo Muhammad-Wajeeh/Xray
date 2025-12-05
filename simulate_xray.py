@@ -211,5 +211,128 @@ def simulate_2d_projection(phantom, angles_deg, I0=1.0):
 
     return np.array(sinogram)
 
+import numpy as np
+from skimage.transform import rotate
+
+# ... keep your existing helper functions here ...
+
+def simulate_sinogram(
+        phantom,
+        max_angle_deg=180.0,
+        angle_step_deg=1.0,
+        I0=1.0,
+        sid=500.0,
+        sdd=1000.0,
+        kVp=30.0,
+        exposure_time=1.0,
+        filtration_mmAl=0.0,
+    ):
+    """
+    Compute a 2D projection (sinogram) with simple X-ray physics.
+
+    Each row = projection at one angle.
+    Each column = detector position.
+
+    Parameters
+    ----------
+    phantom : 2D np.ndarray
+        μ-map (attenuation coefficients).
+    max_angle_deg : float
+        Maximum angle in degrees (0 → max_angle_deg).
+    angle_step_deg : float
+        Step between angles in degrees.
+    I0 : float
+        Incident intensity.
+    sid, sdd : float
+        Source–isocenter distance, source–detector distance (for magnification).
+    kVp : float
+        Tube voltage (affects effective attenuation).
+    exposure_time : float
+        Exposure time in seconds (brightness).
+    filtration_mmAl : float
+        Extra filtration thickness (mm Al).
+
+    Returns
+    -------
+    sinogram : 2D np.ndarray (num_angles, num_detector_pixels)
+    angles_deg : 1D np.ndarray of angle values used.
+    """
+
+    # 1) Magnify phantom according to geometry
+    mag_phantom = _apply_magnification(phantom, sid, sdd)
+
+    # 2) Angle list
+    if max_angle_deg <= 0:
+        max_angle_deg = 1.0  # avoid empty angle set
+    angles_deg = np.arange(0.0, max_angle_deg + 1e-6, angle_step_deg)
+
+    sinogram_rows = []
+
+    # Thickness scale to keep Beer–Lambert in a nice range
+    thickness_scale = 40.0  # tweakable
+
+    for ang in angles_deg:
+        # Rotate for current angle
+        rotated = rotate(mag_phantom, angle=ang, resize=False, mode="edge")
+
+        # Line integral along "beam" direction (vertical sum)
+        path_integral = np.sum(rotated, axis=0) / thickness_scale
+
+        # Energy + filtration
+        path_integral = _apply_energy_scaling(path_integral, kVp)
+        path_integral = _apply_filtration(path_integral, filtration_mmAl, kVp)
+
+        # Beer–Lambert
+        I = I0 * np.exp(-path_integral)
+
+        # Exposure
+        I = _apply_exposure(I, exposure_time)
+
+        sinogram_rows.append(I)
+
+    sinogram = np.array(sinogram_rows)
+
+    # Clamp to [0, 1] so GUI can use fixed display range
+    sinogram = np.clip(sinogram, 0.0, 1.0)
+
+    return sinogram, angles_deg
 
 
+from skimage.transform import radon
+
+def simulate_projection_single(phantom, angle_deg, sid, sdd, kVp, exposure, filtration):
+    # magnify phantom
+    mag = _apply_magnification(phantom, sid, sdd)
+
+    # radon expects angles in degrees
+    theta = [angle_deg]
+    sinogram = radon(mag, theta=theta, circle=False)
+
+    # sinogram shape is (rows, 1)
+    proj = sinogram[:, 0]
+
+    # apply physics
+    proj = _apply_energy_scaling(proj, kVp)
+    proj = _apply_filtration(proj, filtration, kVp)
+    I = np.exp(-proj)
+    I = _apply_exposure(I, exposure)
+
+    # expand to 2D (so GUI can display it)
+    img = np.tile(I, (phantom.shape[0], 1))
+    return np.clip(img, 0, 1)
+
+from skimage.transform import radon
+import numpy as np
+
+def simulate_sinogram(phantom, max_angle, sid, sdd, kVp, exposure, filtration):
+    mag = _apply_magnification(phantom, sid, sdd)
+    angles = np.arange(0, max_angle + 1, 1)
+    sino = radon(mag, theta=angles, circle=False)
+
+    # apply physics per projection (column-wise)
+    sino = _apply_energy_scaling(sino, kVp)
+    sino = _apply_filtration(sino, filtration, kVp)
+    sino = np.exp(-sino)
+    sino = _apply_exposure(sino, exposure)
+
+    return np.clip(sino, 0, 1), angles
