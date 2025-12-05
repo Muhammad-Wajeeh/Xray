@@ -13,7 +13,9 @@ from matplotlib.figure import Figure
 from phantom import create_shepp_logan
 from simulate_xray import (
     simulate_sinogram,
-    simulate_projection_single
+    simulate_projection_single,
+    simulate_projection,
+    simulate_projection_angle,
 )
 
 
@@ -26,11 +28,11 @@ class XrayGUI(QMainWindow):
         self.phantom = create_shepp_logan()
 
         # -----------------------
-        # Matplotlib figure
+        # Matplotlib figure (image + profile overlays)
         # -----------------------
-        self.fig = Figure()
+        self.fig = Figure(figsize=(8, 8))
         self.canvas = FigureCanvas(self.fig)
-        self.ax = self.fig.add_subplot(111)
+        self.ax_img, self.ax_profile = self.fig.subplots(2, 1)
 
         # -----------------------
         # Create sliders
@@ -149,14 +151,100 @@ class XrayGUI(QMainWindow):
 
         # Display
         if not hasattr(self, "im"):
-            self.ax.clear()
-            self.im = self.ax.imshow(
+            self.ax_img.clear()
+            self.im = self.ax_img.imshow(
                 img, cmap="gray", vmin=0.0, vmax=1.0, aspect="auto"
             )
         else:
             self.im.set_data(img)
 
-        self.ax.set_title(title)
+        self.ax_img.set_title(title)
+
+        # -----------------------
+        # Intensity profile overlays (baseline + variations)
+        # -----------------------
+        baseline = simulate_projection(
+            self.phantom,
+            I0=1.0,
+            sid=sid,
+            sdd=sdd,
+            kVp=kvp,
+            exposure_time=exposure,
+            filtration_mmAl=filt,
+        )
+
+        x = np.arange(baseline.size)
+
+        closer_sid = max(100, int(sid * 0.7))  # smaller SID -> more magnification
+        dist_var = simulate_projection(
+            self.phantom,
+            I0=1.0,
+            sid=closer_sid,
+            sdd=sdd,
+            kVp=kvp,
+            exposure_time=exposure,
+            filtration_mmAl=filt,
+        )
+
+        dense_phantom = self.phantom * 1.25      # higher μ (denser material)
+        att_var = simulate_projection(
+            dense_phantom,
+            I0=1.0,
+            sid=sid,
+            sdd=sdd,
+            kVp=kvp,
+            exposure_time=exposure,
+            filtration_mmAl=filt,
+        )
+
+        # Ensure angle variation is visible even at 0°
+        angle_var_deg = max(5, int(angle))
+        angle_var, _ = simulate_projection_angle(
+            self.phantom,
+            angle_var_deg,
+            I0=1.0,
+            sid=sid,
+            sdd=sdd,
+            kVp=kvp,
+            exposure_time=exposure,
+            filtration_mmAl=filt,
+        )
+
+        if not hasattr(self, "profile_lines"):
+            self.ax_profile.clear()
+            self.profile_lines = [
+                self.ax_profile.plot(x, baseline, label="Baseline", linewidth=2)[0],
+                self.ax_profile.plot(x, dist_var, label=f"Closer SID {closer_sid}", linestyle="--")[0],
+                self.ax_profile.plot(x, att_var, label="Higher μ (denser)", linestyle="-.")[0],
+                self.ax_profile.plot(x, angle_var, label=f"Tilted {angle_var_deg}°", linestyle=":")[0],
+            ]
+            self.ax_profile.set_title("Intensity Profile Overlays")
+            self.ax_profile.set_xlabel("Detector Position (pixels)")
+            self.ax_profile.set_ylabel("Intensity")
+            self.ax_profile.grid(alpha=0.2)
+            self.ax_profile.legend()
+            note = (
+                "Notes: smaller SID spreads edges (magnification); higher μ deepens dips; "
+                "tilt shifts edge positions via foreshortening."
+            )
+            self.profile_note = self.ax_profile.text(
+                0.02, 0.95, note,
+                transform=self.ax_profile.transAxes,
+                fontsize=9,
+                va="top",
+                bbox=dict(facecolor="white", alpha=0.7, edgecolor="0.8"),
+            )
+        else:
+            self.profile_lines[0].set_ydata(baseline)
+            self.profile_lines[1].set_ydata(dist_var)
+            self.profile_lines[1].set_label(f"Closer SID {closer_sid}")
+            self.profile_lines[2].set_ydata(att_var)
+            self.profile_lines[3].set_ydata(angle_var)
+            self.profile_lines[3].set_label(f"Tilted {angle_var_deg}°")
+            self.ax_profile.relim()
+            self.ax_profile.autoscale_view()
+            self.ax_profile.legend()
+
         self.canvas.draw()
 
 
@@ -172,4 +260,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
