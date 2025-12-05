@@ -8,8 +8,7 @@ from PyQt5.QtCore import Qt
 
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
-
-from phantom import create_simple_phantom
+from phantom import create_shepp_logan
 from simulate_xray import simulate_projection_angle
 
 
@@ -19,7 +18,7 @@ class XrayGUI(QMainWindow):
         self.setWindowTitle("X-ray Simulation GUI")
 
         # Load phantom once
-        self.phantom = create_simple_phantom()
+        self.phantom = create_shepp_logan()
 
         # Matplotlib figure
         self.fig = Figure()

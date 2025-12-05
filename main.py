@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from phantom import create_simple_phantom
+from phantom import create_shepp_logan
 from simulate_xray import (
     simulate_projection,
     simulate_projection_angle,
@@ -77,7 +77,7 @@ def test_sinogram(phantom):
 
 
 def main():
-    phantom = create_simple_phantom()
+    phantom = create_shepp_logan()
 
     test_basic(phantom)
     test_angles(phantom)
