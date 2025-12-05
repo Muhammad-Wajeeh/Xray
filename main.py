@@ -1,33 +1,37 @@
-# 6 | Add 2D projection (sum over rays angled at θ) 
-# 7 | Add Source–Detector distance (magnification) 
-# 8 | Add energy (kVp → attenuation scaling) 
-# 9 | Add exposure time modification
-# 10 | Add filtration (beam hardening) 
-# 11 | Add GUI sliders (PyQt5) 
-# 12 | Add breast phantom + compression 
-# 13 | Export all outputs into your report 
-
+import numpy as np
 import matplotlib.pyplot as plt
-from phantom import create_simple_phantom
+
+from phantom import create_shepp_logan
 from simulate_xray import (
     simulate_projection,
     simulate_projection_angle,
-    simulate_2d_projection,
+    simulate_2d_projection
 )
 
+
 def test_basic(phantom):
-    # Show phantom (ground truth)
+    # Show phantom
+    plt.figure()
     plt.imshow(phantom, cmap='gray')
     plt.title("Phantom (Ground Truth)")
     plt.colorbar(label="μ")
     plt.show()
 
-    # 1D vertical projection
-    projection = simulate_projection(phantom)
+    # 1D vertical projection at 0°
+    projection = simulate_projection(
+        phantom,
+        I0=1.0,
+        sid=500,
+        sdd=1000,
+        kVp=30,
+        exposure_time=1.0,
+        filtration_mmAl=2.0,
+    )
 
+    plt.figure()
     plt.plot(projection)
-    plt.title("Simulated X-ray Projection (0°)")
-    plt.xlabel("Detector position")
+    plt.title("1D X-ray Projection at 0°")
+    plt.xlabel("Detector Position")
     plt.ylabel("Intensity")
     plt.show()
 
@@ -37,7 +41,16 @@ def test_angles(phantom):
     plt.figure(figsize=(10, 5))
 
     for a in angles:
-        I, _ = simulate_projection_angle(phantom, a)
+        I, _ = simulate_projection_angle(
+            phantom,
+            a,
+            I0=1.0,
+            sid=500,
+            sdd=1000,
+            kVp=30,
+            exposure_time=1.0,
+            filtration_mmAl=2.0
+        )
         plt.plot(I, label=f"{a}°")
 
     plt.title("Projection Profiles at Different Angles")
@@ -47,21 +60,28 @@ def test_angles(phantom):
     plt.show()
 
 
-def test_2d_film(phantom):
-    film = simulate_2d_projection(phantom, angle_deg=30)
+def test_sinogram(phantom):
+    angles = np.linspace(0, 180, 181)   # 0° → 180° in 1° steps
+    sinogram = simulate_2d_projection(
+        phantom,
+        angles,
+    )
 
-    plt.imshow(film, cmap='gray')
-    plt.title("Simulated 2D Film Projection at 30°")
+    plt.figure()
+    plt.imshow(sinogram, cmap='gray', aspect='auto')
+    plt.title("2D Projection (Sinogram)")
+    plt.xlabel("Detector Position")
+    plt.ylabel("Angle (degrees)")
     plt.colorbar()
     plt.show()
 
 
 def main():
-    phantom = create_simple_phantom()
+    phantom = create_shepp_logan()
 
     test_basic(phantom)
     test_angles(phantom)
-    test_2d_film(phantom)
+    test_sinogram(phantom)
 
 
 if __name__ == "__main__":
