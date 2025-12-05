@@ -7,48 +7,75 @@ from skimage.transform import rotate, rescale
 # keep your existing _apply_magnification, _apply_energy_scaling,
 # _apply_filtration, _apply_exposure at the top of this file
 
-def simulate_xray_2d(phantom,
-                     angle_deg,
-                     I0=1.0,
-                     sid=500.0,
-                     sdd=1000.0,
-                     kVp=30.0,
-                     exposure_time=1.0,
-                     filtration_mmAl=0.0):
-    """
-    Simple 2D X-ray 'radiograph':
+import numpy as np
+from skimage.transform import rotate, rescale
 
-    - rotate phantom by angle_deg
-    - apply magnification using SID/SDD
-    - integrate attenuation across the image (cumulative sum)
-    - apply energy scaling, filtration and exposure
+# keep your existing helper functions (_apply_magnification, etc.)
+
+def simulate_xray_2d(
+        phantom,
+        angle_deg,
+        I0=1.0,
+        sid=500.0,
+        sdd=1000.0,
+        kVp=30.0,
+        exposure_time=1.0,
+        filtration_mmAl=0.0,
+    ):
+    """
+    Balanced 2D X-ray simulation:
+    - rotation
+    - magnification (SID/SDD)
+    - cumulative attenuation (reduced strength)
+    - energy scaling (moderate)
+    - filtration (moderate)
+    - exposure (strong)
     """
 
-    # 1) Rotate phantom
+    # 1. Rotate phantom
     rotated = rotate(phantom, angle=angle_deg, resize=False, mode="edge")
+    nx, ny = rotated.shape
 
-    # 2) Magnify according to geometry (SID / SDD)
-    mag = _apply_magnification(rotated, sid, sdd)   # uses SDD/SID internally
-
-    # 3) Build a 2D path integral using cumulative sum along x
-    #    (each pixel sees different path length → visible structure)
-    path_integral = np.cumsum(mag, axis=1)
-
-    # Scale by magnification so SID / SDD visibly change contrast
+    # 2. Magnify image
     M = sdd / sid
-    path_integral = path_integral * M / mag.shape[1]
+    mag = rescale(rotated, M, mode='edge', preserve_range=True, anti_aliasing=False)
 
-    # 4) Apply energy scaling & filtration
-    path_integral = _apply_energy_scaling(path_integral, kVp)
-    path_integral = _apply_filtration(path_integral, filtration_mmAl, kVp)
+    # Crop/pad back to original size
+    sx, sy = mag.shape
+    out = np.zeros_like(rotated)
+    x_start = max((sx - nx) // 2, 0)
+    y_start = max((sy - ny) // 2, 0)
+    x_end = x_start + min(nx, sx)
+    y_end = y_start + min(ny, sy)
+    ox = max((nx - sx) // 2, 0)
+    oy = max((ny - sy) // 2, 0)
+    out[ox:ox + (x_end - x_start), oy:oy + (y_end - y_start)] = mag[x_start:x_end, y_start:y_end]
+    mag = out
 
-    # 5) Beer–Lambert (per pixel)
+    # 3. Path integral (reduced strength)
+    raw_path = np.cumsum(mag, axis=1)
+    path_integral = raw_path / (ny * 0.5)    # divide by 0.5 ny → weaker attenuation
+
+    # 4. Energy scaling (mild)
+    energy_factor = (40.0 / kVp)   # moderate change
+    path_integral *= energy_factor
+
+    # 5. Filtration (mild)
+    mu_al_ref = 0.12               # reduced from 0.25
+    mu_al = mu_al_ref * (30.0 / kVp)
+    path_integral += filtration_mmAl * mu_al
+
+    # 6. Beer–Lambert
     I = I0 * np.exp(-path_integral)
 
-    # 6) Exposure
-    I = _apply_exposure(I, exposure_time)
+    # 7. Exposure (strong)
+    I *= (exposure_time * 3.0)     # brighten radiograph significantly
+
+    # 8. Clip
+    I = np.clip(I, 0.0, 1.0)
 
     return I
+
 
 
 

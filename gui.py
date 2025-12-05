@@ -85,7 +85,7 @@ class XrayGUI(QMainWindow):
         return label, slider
 
     def update_projection(self):
-        # Read slider values
+        # --- Read slider values ---
         angle = self.angle_slider[1].value()
         sid   = self.sid_slider[1].value()
         sdd   = self.sdd_slider[1].value()
@@ -93,28 +93,45 @@ class XrayGUI(QMainWindow):
         exposure = self.exp_slider[1].value() / 100.0
         filt  = self.filt_slider[1].value()
 
-        # Update labels
+        # --- Update slider labels ---
         self.angle_slider[0].setText(f"Angle: {angle}°")
         self.sid_slider[0].setText(f"SID: {sid}")
         self.sdd_slider[0].setText(f"SDD: {sdd}")
         self.kvp_slider[0].setText(f"kVp: {kvp}")
         self.exp_slider[0].setText(f"Exposure x0.01s: {self.exp_slider[1].value()}")
-        self.filt_slider[0].setText(f"Filtration (mm Al): {filt}")
+        self.filt_slider[0].setText(f"Filtration (mm AL): {filt}")
 
+        # --- Compute the 2D radiograph ---
         projection_img = simulate_xray_2d(
-        self.phantom,
-        angle,
-        I0=1.0,
-        sid=sid,
-        sdd=sdd,
-        kVp=kvp,
-        exposure_time=exposure,
-        filtration_mmAl=filt)
- 
-        self.ax.clear()
-        self.ax.imshow(projection_img, cmap='gray')
-        self.ax.set_title("X-ray Projection (2D Radiograph)")
+            self.phantom,
+            angle,
+            I0=1.0,
+            sid=sid,
+            sdd=sdd,
+            kVp=kvp,
+            exposure_time=exposure,
+            filtration_mmAl=filt
+        )
+
+        # --- Display: FIXED vmin/vmax so brightness changes are visible ---
+        if not hasattr(self, "im"):
+            # First frame: create the image object
+            self.ax.clear()
+            self.im = self.ax.imshow(
+                projection_img,
+                cmap='gray',
+                vmin=0.0,
+                vmax=1.0,        # <<< FIXED RANGE (CRITICAL!)
+                origin='upper'
+            )
+            self.ax.set_title("X-ray Projection (2D Radiograph)")
+        else:
+            # Update the existing image data (fast, does not rescale)
+            self.im.set_data(projection_img)
+
+        # Redraw canvas
         self.canvas.draw()
+ 
 
 
 def main():
