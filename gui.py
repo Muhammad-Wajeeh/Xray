@@ -24,19 +24,14 @@ class XrayGUI(QMainWindow):
         super().__init__()
         self.setWindowTitle("X-ray Simulation GUI")
 
-        # Load phantom once
         self.phantom = create_shepp_logan()
 
-        # -----------------------
-        # Matplotlib figure (image + profile overlays)
-        # -----------------------
+       
         self.fig = Figure(figsize=(8, 8))
         self.canvas = FigureCanvas(self.fig)
         self.ax_img, self.ax_profile = self.fig.subplots(2, 1)
 
-        # -----------------------
-        # Create sliders
-        # -----------------------
+      
         self.angle_slider = self.create_slider(0, 180, 30, "Angle (deg)")
         self.sid_slider   = self.create_slider(200, 1200, 500, "SID")
         self.sdd_slider   = self.create_slider(400, 1600, 1000, "SDD")
@@ -44,16 +39,12 @@ class XrayGUI(QMainWindow):
         self.exp_slider   = self.create_slider(1, 300, 100, "Exposure x0.01 s")
         self.filt_slider  = self.create_slider(0, 10, 2, "Filtration (mm Al)")
 
-        # -----------------------
-        # View mode dropdown
-        # -----------------------
+       
         self.view_selector = QComboBox()
         self.view_selector.addItems(["X-ray Projection", "Sinogram"])
         self.view_selector.currentIndexChanged.connect(self.update_projection)
 
-        # -----------------------
-        # Slide panel layout
-        # -----------------------
+      
         sliders = QVBoxLayout()
 
         for label, slider in [
@@ -75,9 +66,7 @@ class XrayGUI(QMainWindow):
         slider_panel = QWidget()
         slider_panel.setLayout(sliders)
 
-        # -----------------------
-        # Final layout: plot + controls
-        # -----------------------
+       
         main_layout = QHBoxLayout()
         main_layout.addWidget(self.canvas, stretch=3)
         main_layout.addWidget(slider_panel, stretch=1)
@@ -86,9 +75,7 @@ class XrayGUI(QMainWindow):
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
-        # -----------------------
-        # Connect slider signals
-        # -----------------------
+     
         for _, slider in [
             self.angle_slider,
             self.sid_slider,
@@ -99,14 +86,10 @@ class XrayGUI(QMainWindow):
         ]:
             slider.valueChanged.connect(self.update_projection)
 
-        # -----------------------
-        # Initial draw
-        # -----------------------
+        
         self.update_projection()
 
-    # ---------------------------------------------------
-    # Helper function: slider creation
-    # ---------------------------------------------------
+   
     def create_slider(self, min_val, max_val, init, label_text):
         label = QLabel(f"{label_text}: {init}")
         slider = QSlider(Qt.Horizontal)
@@ -116,9 +99,7 @@ class XrayGUI(QMainWindow):
         slider.label_text = label_text
         return label, slider
 
-    # ---------------------------------------------------
-    # Update projection (X-ray or Sinogram)
-    # ---------------------------------------------------
+   
     def update_projection(self):
         angle = self.angle_slider[1].value()
         sid   = self.sid_slider[1].value()
@@ -160,9 +141,7 @@ class XrayGUI(QMainWindow):
 
         self.ax_img.set_title(title)
 
-        # -----------------------
-        # Intensity profile overlays (baseline + variations)
-        # -----------------------
+        
         baseline = simulate_projection(
             self.phantom,
             I0=1.0,
@@ -175,7 +154,7 @@ class XrayGUI(QMainWindow):
 
         x = np.arange(baseline.size)
 
-        closer_sid = max(100, int(sid * 0.7))  # smaller SID -> more magnification
+        closer_sid = max(100, int(sid * 0.7))  
         dist_var = simulate_projection(
             self.phantom,
             I0=1.0,
@@ -186,7 +165,7 @@ class XrayGUI(QMainWindow):
             filtration_mmAl=filt,
         )
 
-        dense_phantom = self.phantom * 1.25      # higher μ (denser material)
+        dense_phantom = self.phantom * 1.25     
         att_var = simulate_projection(
             dense_phantom,
             I0=1.0,
@@ -197,7 +176,7 @@ class XrayGUI(QMainWindow):
             filtration_mmAl=filt,
         )
 
-        # Ensure angle variation is visible even at 0°
+        
         angle_var_deg = max(5, int(angle))
         angle_var, _ = simulate_projection_angle(
             self.phantom,
@@ -248,9 +227,6 @@ class XrayGUI(QMainWindow):
         self.canvas.draw()
 
 
-# ---------------------------------------------------
-# MAIN
-# ---------------------------------------------------
 def main():
     app = QApplication(sys.argv)
     gui = XrayGUI()
