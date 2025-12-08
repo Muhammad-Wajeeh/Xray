@@ -21,6 +21,7 @@ def simulate_xray_2d(
         kVp=30.0,
         exposure_time=1.0,
         filtration_mmAl=0.0,
+        grid_ratio=1.0,
     ):
     """
     Balanced 2D X-ray simulation:
@@ -54,10 +55,10 @@ def simulate_xray_2d(
 
     # 3. Path integral (reduced strength)
     raw_path = np.cumsum(mag, axis=1)
-    path_integral = raw_path / (ny * 0.5)    # divide by 0.5 ny → weaker attenuation
+    path_integral = raw_path / (ny * 0.05)    # much stronger attenuation for visible contrast
 
     # 4. Energy scaling (mild)
-    energy_factor = (40.0 / kVp)   # moderate change
+    energy_factor = (60.0 / kVp)   # stronger energy dependence
     path_integral *= energy_factor
 
     # 5. Filtration (mild)
@@ -68,8 +69,9 @@ def simulate_xray_2d(
     # 6. Beer–Lambert
     I = I0 * np.exp(-path_integral)
 
-    # 7. Exposure (strong)
-    I *= (exposure_time * 3.0)     # brighten radiograph significantly
+    # 7. Exposure (moderate)
+    I *= (exposure_time * 1.2)
+    I = _apply_grid(I, grid_ratio)
 
     # 8. Clip
     I = np.clip(I, 0.0, 1.0)
@@ -142,12 +144,20 @@ def _apply_exposure(I, exposure_time, ref_time=1.0):
     """
     return I * (exposure_time / ref_time)
 
+def _apply_grid(I, grid_ratio=1.0):
+    """
+    Crude anti-scatter grid effect: reduce overall intensity.
+    grid_ratio < 1.0 darkens image but improves contrast conceptually.
+    """
+    return I * grid_ratio
+
 
 def simulate_projection(phantom, I0=1.0,
                         sid=500.0, sdd=1000.0,
                         kVp=30.0,
                         exposure_time=1.0,
-                        filtration_mmAl=0.0):
+                        filtration_mmAl=0.0,
+                        grid_ratio=1.0):
     """
     1D vertical projection with magnification + basic physics.
     """
@@ -164,6 +174,7 @@ def simulate_projection(phantom, I0=1.0,
 
     # Exposure
     I = _apply_exposure(I, exposure_time)
+    I = _apply_grid(I, grid_ratio)
 
     return I
 
@@ -172,7 +183,8 @@ def simulate_projection_angle(phantom, angle_deg, I0=1.0,
                               sid=500.0, sdd=1000.0,
                               kVp=30.0,
                               exposure_time=1.0,
-                              filtration_mmAl=0.0):
+                              filtration_mmAl=0.0,
+                              grid_ratio=1.0):
     """
     Angled projection with magnification + basic physics.
     """
@@ -186,6 +198,7 @@ def simulate_projection_angle(phantom, angle_deg, I0=1.0,
 
     I = I0 * np.exp(-path_integral)
     I = _apply_exposure(I, exposure_time)
+    I = _apply_grid(I, grid_ratio)
 
     return I, rotated_mag
 
@@ -226,6 +239,7 @@ def simulate_sinogram(
         kVp=30.0,
         exposure_time=1.0,
         filtration_mmAl=0.0,
+        grid_ratio=1.0,
     ):
     """
     Compute a 2D projection (sinogram) with simple X-ray physics.
@@ -287,6 +301,7 @@ def simulate_sinogram(
 
         # Exposure
         I = _apply_exposure(I, exposure_time)
+        I = _apply_grid(I, grid_ratio)
 
         sinogram_rows.append(I)
 
@@ -300,7 +315,7 @@ def simulate_sinogram(
 
 from skimage.transform import radon
 
-def simulate_projection_single(phantom, angle_deg, sid, sdd, kVp, exposure, filtration):
+def simulate_projection_single(phantom, angle_deg, sid, sdd, kVp, exposure, filtration, grid_ratio=1.0):
     # magnify phantom
     mag = _apply_magnification(phantom, sid, sdd)
 
@@ -316,6 +331,7 @@ def simulate_projection_single(phantom, angle_deg, sid, sdd, kVp, exposure, filt
     proj = _apply_filtration(proj, filtration, kVp)
     I = np.exp(-proj)
     I = _apply_exposure(I, exposure)
+    I = _apply_grid(I, grid_ratio)
 
     # expand to 2D (so GUI can display it)
     img = np.tile(I, (phantom.shape[0], 1))
@@ -324,7 +340,7 @@ def simulate_projection_single(phantom, angle_deg, sid, sdd, kVp, exposure, filt
 from skimage.transform import radon
 import numpy as np
 
-def simulate_sinogram(phantom, max_angle, sid, sdd, kVp, exposure, filtration):
+def simulate_sinogram(phantom, max_angle, sid, sdd, kVp, exposure, filtration, grid_ratio=1.0):
     mag = _apply_magnification(phantom, sid, sdd)
     angles = np.arange(0, max_angle + 1, 1)
     sino = radon(mag, theta=angles, circle=False)
@@ -334,5 +350,6 @@ def simulate_sinogram(phantom, max_angle, sid, sdd, kVp, exposure, filtration):
     sino = _apply_filtration(sino, filtration, kVp)
     sino = np.exp(-sino)
     sino = _apply_exposure(sino, exposure)
+    sino = _apply_grid(sino, grid_ratio=grid_ratio)
 
     return np.clip(sino, 0, 1), angles

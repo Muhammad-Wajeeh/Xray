@@ -120,3 +120,20 @@ def apply_exposure(I: np.ndarray,
     intensity ∝ exposure time.
     """
     return I * (exposure_time / ref_time)
+
+
+def roi_mean_std(image: np.ndarray, mask: np.ndarray):
+    """Compute mean/std inside a boolean mask."""
+    masked = image[mask]
+    if masked.size == 0:
+        return float("nan"), float("nan")
+    return float(masked.mean()), float(masked.std())
+
+
+def roi_contrast(mean_lesion: float, mean_background: float):
+    """
+    Simple contrast metric: absolute difference normalized to background mean.
+    """
+    if np.isnan(mean_lesion) or np.isnan(mean_background) or np.isclose(mean_background, 0):
+        return float("nan")
+    return abs(mean_lesion - mean_background) / mean_background
