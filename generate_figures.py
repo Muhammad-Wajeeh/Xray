@@ -31,7 +31,6 @@ def baseline_and_variations():
     phantom, info = create_breast_phantom()
     params = dict(sid=500, sdd=1000, kVp=35, exposure_time=1.0, filtration_mmAl=2.0, grid_ratio=0.9)
 
-    # Baseline 2D radiograph
     img0 = simulate_xray_2d(phantom, angle_deg=0, **params)
     plt.figure(figsize=(6, 6))
     plt.imshow(img0, cmap="gray", vmin=0, vmax=0.7)
@@ -40,7 +39,6 @@ def baseline_and_variations():
     save_fig("baseline_radiograph.png")
     plt.close()
 
-    # Distance variation
     img_sid_near = simulate_xray_2d(phantom, angle_deg=0, sid=350, sdd=1000, **{k: v for k, v in params.items() if k not in ["sid", "sdd"]})
     img_sid_far = simulate_xray_2d(phantom, angle_deg=0, sid=700, sdd=1000, **{k: v for k, v in params.items() if k not in ["sid", "sdd"]})
     plt.figure(figsize=(12, 4))
@@ -56,7 +54,6 @@ def baseline_and_variations():
     save_fig("distance_variation.png")
     plt.close()
 
-    # μ variation (denser)
     dense_phantom = phantom * 1.2
     img_dense = simulate_xray_2d(dense_phantom, angle_deg=0, **params)
     plt.figure(figsize=(8, 4))
@@ -71,7 +68,6 @@ def baseline_and_variations():
     save_fig("mu_variation.png")
     plt.close()
 
-    # Angle variation
     angles = [0, 15, 30]
     plt.figure(figsize=(12, 4))
     for i, a in enumerate(angles):
@@ -83,7 +79,6 @@ def baseline_and_variations():
     save_fig("angle_variation.png")
     plt.close()
 
-    # Profiles overlay
     baseline_profile = simulate_projection(phantom, I0=1.0, **params)
     dist_near = simulate_projection(phantom, I0=1.0, sid=350, sdd=1000, **{k: v for k, v in params.items() if k not in ["sid", "sdd"]})
     dense_profile = simulate_projection(dense_phantom, I0=1.0, **params)
@@ -103,7 +98,6 @@ def baseline_and_variations():
     save_fig("profile_overlays.png")
     plt.close()
 
-    # Compressed vs baseline profile
     phantom_comp, info_comp = create_breast_phantom(compression=True)
     profile_comp = simulate_projection(phantom_comp, I0=1.0, **params)
     plt.figure(figsize=(8, 4))
@@ -117,7 +111,6 @@ def baseline_and_variations():
     save_fig("profile_compressed.png")
     plt.close()
 
-    # ROI stats table (printed)
     def roi_stats(p, info_local, label):
         lesion_mean, lesion_std = roi_mean_std(p, info_local["lesion_mask"])
         bg_mean, bg_std = roi_mean_std(p, info_local["background_mask"])
@@ -141,7 +134,6 @@ def sinogram_and_schematic():
     save_fig("sinogram.png")
     plt.close()
 
-    # Schematic (quick label overlay)
     plt.figure(figsize=(6, 6))
     plt.imshow(phantom, cmap="magma")
     plt.title("Breast phantom schematic (μ map)")

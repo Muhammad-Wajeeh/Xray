@@ -31,13 +31,10 @@ class XrayGUI(QMainWindow):
         self.breast_compressed, self.breast_info_compressed = create_breast_phantom(
             compression=True
         )
-
-       
         self.fig = Figure(figsize=(8, 8))
         self.canvas = FigureCanvas(self.fig)
         self.ax_img, self.ax_profile = self.fig.subplots(2, 1)
 
-      
         self.angle_slider = self.create_slider(0, 180, 30, "Angle (deg)")
         self.sid_slider   = self.create_slider(200, 1200, 500, "SID")
         self.sdd_slider   = self.create_slider(400, 1600, 1000, "SDD")
@@ -45,12 +42,10 @@ class XrayGUI(QMainWindow):
         self.exp_slider   = self.create_slider(1, 300, 100, "Exposure x0.01 s")
         self.filt_slider  = self.create_slider(0, 10, 2, "Filtration (mm Al)")
 
-       
         self.view_selector = QComboBox()
         self.view_selector.addItems(["X-ray Projection", "Sinogram"])
         self.view_selector.currentIndexChanged.connect(self.update_projection)
 
-        # Toggles
         self.breast_toggle = QCheckBox("Use breast phantom")
         self.breast_toggle.setChecked(True)
         self.compress_toggle = QCheckBox("Compression (thinner breast)")
@@ -60,9 +55,6 @@ class XrayGUI(QMainWindow):
         self.phantom_info = QLabel("Phantom μ: adipose 0.22, gland 0.40, lesion 0.75")
         self.roi_stats = QLabel("ROI stats: N/A")
 
-        # -----------------------
-        # Slide panel layout
-        # -----------------------
         sliders = QVBoxLayout()
 
         for label, slider in [
@@ -89,7 +81,6 @@ class XrayGUI(QMainWindow):
         slider_panel = QWidget()
         slider_panel.setLayout(sliders)
 
-       
         main_layout = QHBoxLayout()
         main_layout.addWidget(self.canvas, stretch=3)
         main_layout.addWidget(slider_panel, stretch=1)
@@ -98,7 +89,6 @@ class XrayGUI(QMainWindow):
         container.setLayout(main_layout)
         self.setCentralWidget(container)
 
-     
         for _, slider in [
             self.angle_slider,
             self.sid_slider,
@@ -109,10 +99,8 @@ class XrayGUI(QMainWindow):
         ]:
             slider.valueChanged.connect(self.update_projection)
 
-        
         self.update_projection()
 
-   
     def create_slider(self, min_val, max_val, init, label_text):
         label = QLabel(f"{label_text}: {init}")
         slider = QSlider(Qt.Horizontal)
@@ -122,7 +110,6 @@ class XrayGUI(QMainWindow):
         slider.label_text = label_text
         return label, slider
 
-   
     def update_projection(self):
         angle = self.angle_slider[1].value()
         sid   = self.sid_slider[1].value()
@@ -140,9 +127,8 @@ class XrayGUI(QMainWindow):
         else:
             phantom = self.phantom
             phantom_info = None
-        use_external = False  # external images removed
+        use_external = False
 
-        # Update labels
         self.angle_slider[0].setText(f"Angle: {angle}°")
         self.sid_slider[0].setText(f"SID: {sid}")
         self.sdd_slider[0].setText(f"SDD: {sdd}")
@@ -166,13 +152,12 @@ class XrayGUI(QMainWindow):
             )
             title = f"X-ray Projection @ {angle}°"
 
-        else:  # Sinogram
+        else:
             img, _ = simulate_sinogram(
                 phantom, angle, sid, sdd, kvp, exposure, filt, grid_ratio=grid_ratio
             )
             title = f"Sinogram (0 → {angle}°)"
 
-        # Display
         if not hasattr(self, "im"):
             self.ax_img.clear()
             self.im = self.ax_img.imshow(
@@ -184,7 +169,6 @@ class XrayGUI(QMainWindow):
 
         self.ax_img.set_title(title)
 
-        
         baseline = simulate_projection(
             phantom,
             I0=1.0,
@@ -202,7 +186,7 @@ class XrayGUI(QMainWindow):
             or len(self.profile_lines[0].get_xdata()) != baseline.size
         )
 
-        closer_sid = max(100, int(sid * 0.7))  
+        closer_sid = max(100, int(sid * 0.7))
         dist_var = simulate_projection(
             phantom,
             I0=1.0,
@@ -214,7 +198,7 @@ class XrayGUI(QMainWindow):
             grid_ratio=grid_ratio,
         )
 
-        dense_phantom = phantom * 1.25      # higher μ (denser material)
+        dense_phantom = phantom * 1.25
         att_var = simulate_projection(
             dense_phantom,
             I0=1.0,
@@ -226,7 +210,6 @@ class XrayGUI(QMainWindow):
             grid_ratio=grid_ratio,
         )
 
-        
         angle_var_deg = max(5, int(angle))
         angle_var, _ = simulate_projection_angle(
             phantom,
@@ -265,7 +248,6 @@ class XrayGUI(QMainWindow):
             base_profile = baseline
             compressed_profile = baseline
 
-        # Ensure all profiles match x length
         def _match_length(arr, target_len):
             if arr.size == target_len:
                 return arr
@@ -321,7 +303,6 @@ class XrayGUI(QMainWindow):
             self.ax_profile.autoscale_view()
             self.ax_profile.legend()
 
-        # ROI statistics if using breast phantom
         if use_breast:
             lesion_mean, lesion_std = roi_mean_std(
                 phantom, phantom_info["lesion_mask"]

@@ -19,12 +19,10 @@ def rotate_image_nn(image: np.ndarray, theta_deg: float) -> np.ndarray:
     cx = (nx - 1) / 2.0
     cy = (ny - 1) / 2.0
 
-    # output grid
     x_out, y_out = np.indices((nx, ny))
     x_out_c = x_out - cx
     y_out_c = y_out - cy
 
-    # inverse rotation to sample from input
     x_in_c = cos_t * x_out_c + sin_t * y_out_c
     y_in_c = -sin_t * x_out_c + cos_t * y_out_c
 
@@ -66,7 +64,6 @@ def apply_magnification(phantom: np.ndarray,
     x_out_c = x_out - cx
     y_out_c = y_out - cy
 
-    # Map detector coords back to object plane
     x_in_c = x_out_c / M
     y_in_c = y_out_c / M
 
@@ -104,8 +101,7 @@ def apply_filtration(path_integral: np.ndarray,
     We pretend there is an equivalent extra Al thickness in front
     of everything. mu_Al is a made-up value; tweak if you want.
     """
-    # crude: make filter slightly less effective at higher kVp
-    mu_al_ref = 0.15  # arbitrary
+    mu_al_ref = 0.15
     mu_al = mu_al_ref * (30.0 / energy_keV)
 
     extra = filtration_mmAl * mu_al

@@ -10,14 +10,12 @@ from simulate_xray import (
 
 
 def test_basic(phantom):
-    # Show phantom
     plt.figure()
     plt.imshow(phantom, cmap='gray')
     plt.title("Phantom (Ground Truth)")
     plt.colorbar(label="μ")
     plt.show()
 
-    # 1D vertical projection at 0°
     projection = simulate_projection(
         phantom,
         I0=1.0,
@@ -41,7 +39,6 @@ def plot_profile_overlays(phantom):
     Overlay baseline profile with distance, attenuation, and angle variations.
     Shows how edges/magnification shift when parameters change.
     """
-    # Baseline settings
     base_sid = 500
     base_sdd = 1000
     base_kvp = 30
@@ -59,7 +56,6 @@ def plot_profile_overlays(phantom):
         filtration_mmAl=base_filt,
     )
 
-    # Distance variation: move source closer (more magnification)
     closer_sid = 350
     closer_sdd = 1000
     dist_var = simulate_projection(
@@ -72,7 +68,6 @@ def plot_profile_overlays(phantom):
         filtration_mmAl=base_filt,
     )
 
-    # Attenuation coefficient variation: boost μ to mimic denser material
     dense_phantom = phantom * 1.25
     att_var = simulate_projection(
         dense_phantom,
@@ -84,7 +79,6 @@ def plot_profile_overlays(phantom):
         filtration_mmAl=base_filt,
     )
 
-    # Angle variation: tilt object
     angle_deg = 20
     angle_var, _ = simulate_projection_angle(
         phantom,
@@ -146,7 +140,7 @@ def test_angles(phantom):
 
 
 def test_sinogram(phantom):
-    angles = np.linspace(0, 180, 181)   # 0° → 180° in 1° steps
+    angles = np.linspace(0, 180, 181)
     sinogram = simulate_2d_projection(
         phantom,
         angles,

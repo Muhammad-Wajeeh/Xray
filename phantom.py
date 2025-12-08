@@ -7,7 +7,6 @@ def create_shepp_logan(nx=256, ny=256):
     phantom = shepp_logan_phantom()
     phantom = resize(phantom, (nx, ny), anti_aliasing=True)
 
-    # Boost μ values for visible attenuation in this simple model
     phantom = 0.1 + phantom * 1.5
 
     return phantom
@@ -28,36 +27,30 @@ def create_breast_phantom(
     gland_mu = 0.40
     lesion_mu = 0.75
     micro_mu = 0.55
-    muscle_mu = 0.50  # pectoral muscle corner
+    muscle_mu = 0.50
     skin_mu = 0.80
 
     x = np.linspace(-1, 1, nx)
     y = np.linspace(-1, 1, ny)
     xx, yy = np.meshgrid(x, y, indexing="ij")
 
-    # Breast outline (ellipse) with soft edge
     breast_mask = (xx**2) / (0.9**2) + (yy**2) / (1.0**2) <= 1.0
     phantom = np.full((nx, ny), adipose_mu)
     phantom[~breast_mask] = 0.0
 
-    # Smooth thickness gradient (slightly thicker toward center)
     thickness = np.exp(-3.0 * (xx**2 + yy**2))
     phantom *= 0.8 + 0.2 * thickness
 
-    # Skin line (rim slightly higher attenuation)
     skin_rim = (np.abs((xx**2) / (0.92**2) + (yy**2) / (1.02**2) - 1.0) < 0.03)
     phantom[skin_rim] = skin_mu
 
-    # Pectoral muscle wedge on left upper corner
     pec_mask = (xx < -0.55) & (yy > -0.2) & (yy < 0.9) & ((yy + 0.9) > (xx + 0.2))
     phantom[pec_mask] = muscle_mu
 
-    # Glandular region (crescent/central mound)
     gland_mask = ((xx + 0.15) ** 2) / (0.55**2) + (yy**2) / (0.6**2) <= 1.0
     gland_mask |= ((xx + 0.05) ** 2) / (0.45**2) + ((yy + 0.15) ** 2) / (0.5**2) <= 1.0
     phantom[gland_mask & breast_mask] = gland_mu
 
-    # Lesion (circle)
     cx = nx // 2
     cy = ny // 2
     rr = lesion_radius
@@ -66,7 +59,6 @@ def create_breast_phantom(
     ) <= rr**2
     phantom[lesion_mask] = lesion_mu
 
-    # Add a few microcalcification clusters / nodules near glandular tissue
     rng = np.random.default_rng(42)
     num_spots = 7
     spot_centers = rng.normal(loc=[-0.1, 0.1], scale=0.18, size=(num_spots, 2))
@@ -75,7 +67,6 @@ def create_breast_phantom(
         spot_mask = (xx - sx) ** 2 + (yy - sy) ** 2 <= rad**2
         phantom[spot_mask & breast_mask] = micro_mu
 
-    # Add a small benign ellipse (fibroadenoma-like)
     benign_mask = ((xx + 0.35) ** 2) / (0.12**2) + ((yy - 0.25) ** 2) / (0.08**2) <= 1.0
     phantom[benign_mask & breast_mask] = (gland_mu + micro_mu) * 0.5
 
