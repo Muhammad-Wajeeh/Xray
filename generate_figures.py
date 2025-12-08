@@ -8,14 +8,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 
-from phantom import create_breast_phantom, create_shepp_logan
-from simulate_xray import (
+from ProjectFunctions.phantom import create_breast_phantom, create_shepp_logan
+from ProjectFunctions.simulate_xray import (
     simulate_xray_2d,
     simulate_projection,
     simulate_projection_angle,
     simulate_sinogram,
 )
-from utils import roi_mean_std, roi_contrast
+from ProjectFunctions.utils import roi_mean_std, roi_contrast
 
 FIG_DIR = Path("figs")
 FIG_DIR.mkdir(exist_ok=True)

@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from phantom import create_shepp_logan
-from simulate_xray import (
+from ProjectFunctions.phantom import create_shepp_logan
+from ProjectFunctions.simulate_xray import (
     simulate_projection,
     simulate_projection_angle,
     simulate_2d_projection

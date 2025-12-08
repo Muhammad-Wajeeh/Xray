@@ -10,15 +10,15 @@ from PyQt5.QtCore import Qt
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
-from phantom import create_shepp_logan, create_breast_phantom
-from simulate_xray import (
+from ProjectFunctions.phantom import create_shepp_logan, create_breast_phantom
+from ProjectFunctions.simulate_xray import (
     simulate_sinogram,
     simulate_projection_single,
     simulate_projection,
     simulate_projection_angle,
     simulate_xray_2d,
 )
-from utils import roi_mean_std, roi_contrast
+from ProjectFunctions.utils import roi_mean_std, roi_contrast
 
 
 class XrayGUI(QMainWindow):
