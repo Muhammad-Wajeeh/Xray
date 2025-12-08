@@ -10,6 +10,7 @@ from simulate_xray import (
 
 
 def test_basic(phantom):
+    """Display phantom μ-map and baseline 1D projection at 0°."""
     plt.figure()
     plt.imshow(phantom, cmap='gray')
     plt.title("Phantom (Ground Truth)")
@@ -35,10 +36,7 @@ def test_basic(phantom):
 
 
 def plot_profile_overlays(phantom):
-    """
-    Overlay baseline profile with distance, attenuation, and angle variations.
-    Shows how edges/magnification shift when parameters change.
-    """
+    """Overlay baseline profile with distance, attenuation, and angle variations."""
     base_sid = 500
     base_sdd = 1000
     base_kvp = 30
@@ -116,6 +114,7 @@ def plot_profile_overlays(phantom):
 
 
 def test_angles(phantom):
+    """Plot 1D projection profiles for several angles."""
     angles = [0, 15, 30, 45, 60]
     plt.figure(figsize=(10, 5))
 
@@ -140,6 +139,7 @@ def test_angles(phantom):
 
 
 def test_sinogram(phantom):
+    """Compute and display simple sinogram from phantom across 0-180°."""
     angles = np.linspace(0, 180, 181)
     sinogram = simulate_2d_projection(
         phantom,
@@ -156,6 +156,7 @@ def test_sinogram(phantom):
 
 
 def main():
+    """Run demo plots on Shepp-Logan phantom."""
     phantom = create_shepp_logan()
 
     test_basic(phantom)

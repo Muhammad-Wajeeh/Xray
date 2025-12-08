@@ -23,6 +23,7 @@ from utils import roi_mean_std, roi_contrast
 
 class XrayGUI(QMainWindow):
     def __init__(self):
+        """Initialize GUI, load phantoms, build layout, and draw first view."""
         super().__init__()
         self.setWindowTitle("X-ray Simulation GUI")
 
@@ -102,6 +103,7 @@ class XrayGUI(QMainWindow):
         self.update_projection()
 
     def create_slider(self, min_val, max_val, init, label_text):
+        """Create horizontal slider with label; returns (label, slider)."""
         label = QLabel(f"{label_text}: {init}")
         slider = QSlider(Qt.Horizontal)
         slider.setMinimum(min_val)
@@ -111,6 +113,7 @@ class XrayGUI(QMainWindow):
         return label, slider
 
     def update_projection(self):
+        """Recompute image, profiles, ROI stats using current slider/toggle settings."""
         angle = self.angle_slider[1].value()
         sid   = self.sid_slider[1].value()
         sdd   = self.sdd_slider[1].value()

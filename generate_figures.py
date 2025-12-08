@@ -22,14 +22,23 @@ FIG_DIR.mkdir(exist_ok=True)
 
 
 def save_fig(name):
+    """Save current Matplotlib figure to figs/name (png)."""
     path = FIG_DIR / name
     plt.savefig(path, bbox_inches="tight", dpi=200)
     print(f"saved {path}")
 
 
 def baseline_and_variations():
+    """Generate baseline radiograph and parameter variation figures; print ROI stats."""
     phantom, info = create_breast_phantom()
     params = dict(sid=500, sdd=1000, kVp=35, exposure_time=1.0, filtration_mmAl=2.0, grid_ratio=0.9)
+
+    plt.figure(figsize=(6, 6))
+    plt.imshow(phantom, cmap="magma")
+    plt.title("Phantom μ map (ground truth)")
+    plt.axis("off")
+    save_fig("phantom_ground_truth.png")
+    plt.close()
 
     img0 = simulate_xray_2d(phantom, angle_deg=0, **params)
     plt.figure(figsize=(6, 6))
@@ -123,6 +132,7 @@ def baseline_and_variations():
 
 
 def sinogram_and_schematic():
+    """Generate sinogram and phantom schematic figures."""
     phantom, _ = create_breast_phantom()
     angles = np.linspace(0, 180, 181)
     sino, _ = simulate_sinogram(phantom, max_angle=180, sid=500, sdd=1000, kVp=35, exposure=1.0, filtration=2.0, grid_ratio=0.9)
@@ -136,13 +146,14 @@ def sinogram_and_schematic():
 
     plt.figure(figsize=(6, 6))
     plt.imshow(phantom, cmap="magma")
-    plt.title("Breast phantom schematic (μ map)")
+    plt.title("Phantom μ map (ground truth)")
     plt.axis("off")
-    save_fig("phantom_schematic.png")
+    save_fig("phantom_ground_truth.png")
     plt.close()
 
 
 def main():
+    """Entry point: build all figures."""
     baseline_and_variations()
     sinogram_and_schematic()
 

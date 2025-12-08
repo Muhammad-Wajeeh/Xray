@@ -13,7 +13,9 @@ def simulate_xray_2d(
         grid_ratio=1.0,
     ):
     """
-    Balanced 2D X-ray simulation with magnification, attenuation, filtration, and exposure scaling.
+    Compute 2D radiograph: rotate phantom, magnify (sdd/sid), apply Beer–Lambert with energy,
+    filtration, exposure, and grid scaling. Params: phantom (2D μ), angle_deg, I0, sid, sdd,
+    kVp, exposure_time, filtration_mmAl, grid_ratio.
     """
     rotated = rotate(phantom, angle=angle_deg, resize=False, mode="edge")
     nx, ny = rotated.shape
@@ -55,11 +57,7 @@ def simulate_xray_2d(
 
 
 def _apply_magnification(image, sid, sdd):
-    """
-    Very simple magnification model.
-    M = SDD / SID. We rescale the image and then center-crop/pad
-    back to the original size so the output shape is unchanged.
-    """
+    """Magnify by M=sdd/sid using rescale + center crop/pad to original size."""
     M = sdd / sid
     if np.isclose(M, 1.0):
         return image
@@ -92,18 +90,12 @@ def _apply_magnification(image, sid, sdd):
     return out
 
 def _apply_energy_scaling(path_integral, kVp, ref_kVp=30.0):
-    """
-    Crude energy dependence: mu(E) ∝ (ref_kVp / kVp).
-    Higher kVp => lower effective attenuation.
-    """
+    """Scale attenuation by ref_kVp/kVp (higher kVp => lower effective μ)."""
     return path_integral * (ref_kVp / kVp)
 
 
 def _apply_filtration(path_integral, filtration_mmAl, kVp):
-    """
-    Very simple beam hardening / filtration model.
-    We pretend there's an extra Al thickness in front.
-    """
+    """Add filtration term proportional to mm Al and inverse kVp."""
     mu_al_ref = 0.15
     mu_al = mu_al_ref * (30.0 / kVp)
     extra = filtration_mmAl * mu_al
@@ -111,16 +103,11 @@ def _apply_filtration(path_integral, filtration_mmAl, kVp):
 
 
 def _apply_exposure(I, exposure_time, ref_time=1.0):
-    """
-    Intensity proportional to exposure time.
-    """
+    """Scale intensity by exposure_time/ref_time."""
     return I * (exposure_time / ref_time)
 
 def _apply_grid(I, grid_ratio=1.0):
-    """
-    Crude anti-scatter grid effect: reduce overall intensity.
-    grid_ratio < 1.0 darkens image but improves contrast conceptually.
-    """
+    """Apply grid attenuation multiplier (<=1)."""
     return I * grid_ratio
 
 
@@ -131,7 +118,8 @@ def simulate_projection(phantom, I0=1.0,
                         filtration_mmAl=0.0,
                         grid_ratio=1.0):
     """
-    1D vertical projection with magnification and basic physics.
+    1D vertical projection with magnification and Beer–Lambert physics.
+    Params: phantom, I0, sid, sdd, kVp, exposure_time, filtration_mmAl, grid_ratio.
     """
     mag_phantom = _apply_magnification(phantom, sid, sdd)
 
@@ -155,7 +143,8 @@ def simulate_projection_angle(phantom, angle_deg, I0=1.0,
                               filtration_mmAl=0.0,
                               grid_ratio=1.0):
     """
-    Angled projection with magnification and basic physics.
+    Angled projection with rotation, magnification, energy/filtration, exposure, grid.
+    Params: phantom, angle_deg, I0, sid, sdd, kVp, exposure_time, filtration_mmAl, grid_ratio.
     """
     rotated = rotate(phantom, angle=angle_deg, resize=False, mode='edge')
     rotated_mag = _apply_magnification(rotated, sid, sdd)
@@ -177,6 +166,7 @@ def simulate_2d_projection(phantom, angles_deg, I0=1.0):
     Compute a 2D Radon sinogram:
     Each row = projection at one angle
     Each column = detector pixel
+    Params: phantom, angles_deg (iterable), I0 incident intensity.
     """
     sinogram = []
 
@@ -207,34 +197,8 @@ def simulate_sinogram(
         grid_ratio=1.0,
     ):
     """
-    Compute a 2D projection (sinogram) with simple X-ray physics.
-
-    Each row = projection at one angle.
-    Each column = detector position.
-
-    Parameters
-    ----------
-    phantom : 2D np.ndarray
-        μ-map (attenuation coefficients).
-    max_angle_deg : float
-        Maximum angle in degrees (0 → max_angle_deg).
-    angle_step_deg : float
-        Step between angles in degrees.
-    I0 : float
-        Incident intensity.
-    sid, sdd : float
-        Source–isocenter distance, source–detector distance (for magnification).
-    kVp : float
-        Tube voltage (affects effective attenuation).
-    exposure_time : float
-        Exposure time in seconds (brightness).
-    filtration_mmAl : float
-        Extra filtration thickness (mm Al).
-
-    Returns
-    -------
-    sinogram : 2D np.ndarray (num_angles, num_detector_pixels)
-    angles_deg : 1D np.ndarray of angle values used.
+    Compute sinogram with magnification, energy/filtration, exposure, grid.
+    Params: phantom, max_angle_deg, angle_step_deg, I0, sid, sdd, kVp, exposure_time, filtration_mmAl, grid_ratio.
     """
 
     mag_phantom = _apply_magnification(phantom, sid, sdd)
@@ -272,6 +236,7 @@ def simulate_sinogram(
 from skimage.transform import radon
 
 def simulate_projection_single(phantom, angle_deg, sid, sdd, kVp, exposure, filtration, grid_ratio=1.0):
+    """Single-angle Radon projection expanded to 2D for display. Params: phantom, angle_deg, sid, sdd, kVp, exposure, filtration, grid_ratio."""
     mag = _apply_magnification(phantom, sid, sdd)
 
     theta = [angle_deg]
@@ -289,6 +254,7 @@ def simulate_projection_single(phantom, angle_deg, sid, sdd, kVp, exposure, filt
     return np.clip(img, 0, 1)
 
 def simulate_sinogram(phantom, max_angle, sid, sdd, kVp, exposure, filtration, grid_ratio=1.0):
+    """Legacy sinogram builder using Radon on magnified phantom. Params: phantom, max_angle, sid, sdd, kVp, exposure, filtration, grid_ratio."""
     mag = _apply_magnification(phantom, sid, sdd)
     angles = np.arange(0, max_angle + 1, 1)
     sino = radon(mag, theta=angles, circle=False)

@@ -1,13 +1,7 @@
 import numpy as np
 
 def rotate_image_nn(image: np.ndarray, theta_deg: float) -> np.ndarray:
-    """
-    Rotate a 2D image around its center by theta_deg using nearest-neighbor
-    interpolation. No SciPy required.
-
-    Positive theta = counter-clockwise.
-    Output has the same shape as input.
-    """
+    """Rotate 2D array by theta_deg (deg) about center using nearest neighbor."""
     if theta_deg % 360 == 0:
         return image.copy()
 
@@ -43,15 +37,7 @@ def rotate_image_nn(image: np.ndarray, theta_deg: float) -> np.ndarray:
 def apply_magnification(phantom: np.ndarray,
                         sid: float,
                         sdd: float) -> np.ndarray:
-    """
-    Very simple magnification model:
-    magnification M = SDD / SID.
-    We rescale the phantom with nearest neighbor to emulate
-    how structures appear larger on the detector.
-
-    This keeps the array size fixed; it just stretches/compresses
-    content inside it.
-    """
+    """Nearest-neighbor magnification by factor M=SDD/SID, preserving output size."""
     M = sdd / sid
     if np.isclose(M, 1.0):
         return phantom.copy()
@@ -82,12 +68,7 @@ def apply_magnification(phantom: np.ndarray,
 def apply_energy_scaling(path_integral: np.ndarray,
                          energy_keV: float,
                          ref_energy_keV: float = 30.0) -> np.ndarray:
-    """
-    Toy model for energy dependence:
-    mu(E) ~ mu_ref * (ref_E / E)
-
-    So higher kVp -> lower effective attenuation.
-    """
+    """Scale attenuation by ref_energy_keV/energy_keV to mimic higher kVp reduction."""
     scale = ref_energy_keV / energy_keV
     return path_integral * scale
 
@@ -95,12 +76,7 @@ def apply_energy_scaling(path_integral: np.ndarray,
 def apply_filtration(path_integral: np.ndarray,
                      filtration_mmAl: float,
                      energy_keV: float) -> np.ndarray:
-    """
-    Toy beam hardening / filtration model.
-
-    We pretend there is an equivalent extra Al thickness in front
-    of everything. mu_Al is a made-up value; tweak if you want.
-    """
+    """Add equivalent aluminum thickness term; crude beam hardening surrogate."""
     mu_al_ref = 0.15
     mu_al = mu_al_ref * (30.0 / energy_keV)
 
@@ -111,15 +87,12 @@ def apply_filtration(path_integral: np.ndarray,
 def apply_exposure(I: np.ndarray,
                    exposure_time: float,
                    ref_time: float = 1.0) -> np.ndarray:
-    """
-    Simple exposure model:
-    intensity ∝ exposure time.
-    """
+    """Scale intensity linearly by exposure_time/ref_time."""
     return I * (exposure_time / ref_time)
 
 
 def roi_mean_std(image: np.ndarray, mask: np.ndarray):
-    """Compute mean/std inside a boolean mask."""
+    """Return mean/std within boolean mask; nan if mask empty."""
     masked = image[mask]
     if masked.size == 0:
         return float("nan"), float("nan")
@@ -127,9 +100,7 @@ def roi_mean_std(image: np.ndarray, mask: np.ndarray):
 
 
 def roi_contrast(mean_lesion: float, mean_background: float):
-    """
-    Simple contrast metric: absolute difference normalized to background mean.
-    """
+    """Absolute difference normalized by background mean; nan on invalid input."""
     if np.isnan(mean_lesion) or np.isnan(mean_background) or np.isclose(mean_background, 0):
         return float("nan")
     return abs(mean_lesion - mean_background) / mean_background

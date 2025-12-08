@@ -4,11 +4,10 @@ import numpy as np
 
 
 def create_shepp_logan(nx=256, ny=256):
+    """Return resized Shepp-Logan phantom with boosted μ."""
     phantom = shepp_logan_phantom()
     phantom = resize(phantom, (nx, ny), anti_aliasing=True)
-
     phantom = 0.1 + phantom * 1.5
-
     return phantom
 
 
@@ -20,8 +19,8 @@ def create_breast_phantom(
     compression_factor=0.65,
 ):
     """
-    2D breast phantom: large elliptical breast + glandular core + lesion + microcalc/benign nodules.
-    Returns (phantom, info) where info carries ROI masks for stats.
+    Build 2D breast phantom with skin, pectoral wedge, glandular crescent, lesion, calc spots, benign ellipse.
+    Returns (phantom, info) where info contains ROI masks (lesion/background) and μ values.
     """
     adipose_mu = 0.22
     gland_mu = 0.40
@@ -85,9 +84,7 @@ def create_breast_phantom(
 
 
 def _compress_phantom(phantom, info, factor):
-    """
-    Compress along the superior-inferior axis and pad back to original size.
-    """
+    """Compress along superior-inferior axis by factor, pad to original size, and adjust masks."""
     nx, ny = phantom.shape
     comp_nx = max(1, int(nx * factor))
     compressed = resize(
